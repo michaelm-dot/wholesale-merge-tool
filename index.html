@@ -1,0 +1,573 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>USA Wholesale - Product Research Merge Tool</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: #0f1117;
+      color: #e1e4e8;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+    .header {
+      width: 100%;
+      background: #161b22;
+      border-bottom: 1px solid #30363d;
+      padding: 16px 24px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    .header h1 {
+      font-size: 18px;
+      font-weight: 600;
+      color: #f0f6fc;
+    }
+    .header .badge {
+      background: #238636;
+      color: #fff;
+      padding: 2px 8px;
+      border-radius: 12px;
+      font-size: 12px;
+      font-weight: 500;
+    }
+    .container {
+      max-width: 720px;
+      width: 100%;
+      padding: 32px 24px;
+    }
+    .description {
+      color: #8b949e;
+      margin-bottom: 32px;
+      line-height: 1.6;
+    }
+    .upload-section {
+      background: #161b22;
+      border: 1px solid #30363d;
+      border-radius: 8px;
+      padding: 24px;
+      margin-bottom: 16px;
+    }
+    .upload-section h3 {
+      font-size: 14px;
+      font-weight: 600;
+      margin-bottom: 4px;
+      color: #f0f6fc;
+    }
+    .upload-section p {
+      font-size: 13px;
+      color: #8b949e;
+      margin-bottom: 12px;
+    }
+    .file-drop {
+      border: 2px dashed #30363d;
+      border-radius: 6px;
+      padding: 24px;
+      text-align: center;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    .file-drop:hover, .file-drop.dragover {
+      border-color: #58a6ff;
+      background: rgba(88, 166, 255, 0.05);
+    }
+    .file-drop.has-file {
+      border-color: #238636;
+      background: rgba(35, 134, 54, 0.08);
+    }
+    .file-drop input { display: none; }
+    .file-drop .icon { font-size: 28px; margin-bottom: 8px; }
+    .file-drop .label { font-size: 14px; color: #8b949e; }
+    .file-drop .filename {
+      font-size: 14px;
+      color: #58a6ff;
+      font-weight: 500;
+      word-break: break-all;
+    }
+    .merge-btn {
+      width: 100%;
+      padding: 14px;
+      background: #238636;
+      color: #fff;
+      border: none;
+      border-radius: 6px;
+      font-size: 16px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background 0.2s;
+      margin-top: 24px;
+    }
+    .merge-btn:hover:not(:disabled) { background: #2ea043; }
+    .merge-btn:disabled {
+      background: #21262d;
+      color: #484f58;
+      cursor: not-allowed;
+    }
+    .status {
+      margin-top: 16px;
+      padding: 16px;
+      border-radius: 6px;
+      display: none;
+      font-size: 14px;
+      line-height: 1.6;
+    }
+    .status.loading {
+      display: block;
+      background: rgba(88, 166, 255, 0.1);
+      border: 1px solid #1f6feb;
+      color: #58a6ff;
+    }
+    .status.success {
+      display: block;
+      background: rgba(35, 134, 54, 0.1);
+      border: 1px solid #238636;
+      color: #3fb950;
+    }
+    .status.error {
+      display: block;
+      background: rgba(248, 81, 73, 0.1);
+      border: 1px solid #da3633;
+      color: #f85149;
+    }
+    .status a {
+      color: #58a6ff;
+      text-decoration: none;
+      font-weight: 600;
+    }
+    .status a:hover { text-decoration: underline; }
+    .progress-bar {
+      width: 100%;
+      height: 4px;
+      background: #21262d;
+      border-radius: 2px;
+      margin-top: 8px;
+      overflow: hidden;
+    }
+    .progress-bar .fill {
+      height: 100%;
+      background: #58a6ff;
+      border-radius: 2px;
+      transition: width 0.3s;
+      width: 0%;
+    }
+    .stats {
+      margin-top: 24px;
+      display: none;
+      background: #161b22;
+      border: 1px solid #30363d;
+      border-radius: 8px;
+      padding: 16px 24px;
+    }
+    .stats.show { display: block; }
+    .stat-row {
+      display: flex;
+      justify-content: space-between;
+      padding: 6px 0;
+      font-size: 14px;
+    }
+    .stat-row .label { color: #8b949e; }
+    .stat-row .value { color: #f0f6fc; font-weight: 500; }
+    .config-section {
+      background: #161b22;
+      border: 1px solid #30363d;
+      border-radius: 8px;
+      padding: 24px;
+      margin-bottom: 16px;
+    }
+    .config-section h3 {
+      font-size: 14px;
+      font-weight: 600;
+      margin-bottom: 12px;
+      color: #f0f6fc;
+    }
+    .config-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 8px;
+    }
+    .config-row label { font-size: 13px; color: #8b949e; }
+    .config-row input {
+      background: #0d1117;
+      border: 1px solid #30363d;
+      border-radius: 4px;
+      color: #e1e4e8;
+      padding: 6px 10px;
+      font-size: 13px;
+      width: 100px;
+      text-align: right;
+    }
+    .config-row input:focus { border-color: #58a6ff; outline: none; }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <h1>USA Wholesale Supply - Merge Tool</h1>
+    <span class="badge">v1.0</span>
+  </div>
+
+  <div class="container">
+    <p class="description">
+      Upload your raw distributor file and Keepa export to merge them into a Google Sheet
+      with formulas and a Clean Sheet that auto-filters profitable items.
+    </p>
+
+    <div class="upload-section">
+      <h3>1. Raw Distributor File</h3>
+      <p>Excel file with UPC and Unit Cost columns (.xls or .xlsx)</p>
+      <div class="file-drop" id="drop1" onclick="document.getElementById('file1').click()">
+        <input type="file" id="file1" accept=".xls,.xlsx,.csv" onchange="handleFile(1, this)">
+        <div class="icon">ð</div>
+        <div class="label" id="label1">Click or drag file here</div>
+      </div>
+    </div>
+
+    <div class="upload-section">
+      <h3>2. Keepa Export</h3>
+      <p>Keepa product viewer export (.xlsx) with ASIN, Buy Box, Brand, etc.</p>
+      <div class="file-drop" id="drop2" onclick="document.getElementById('file2').click()">
+        <input type="file" id="file2" accept=".xls,.xlsx,.csv" onchange="handleFile(2, this)">
+        <div class="icon">ð</div>
+        <div class="label" id="label2">Click or drag file here</div>
+      </div>
+    </div>
+
+    <div class="config-section">
+      <h3>Settings</h3>
+      <div class="config-row">
+        <label>Unit Cost Markup %</label>
+        <input type="number" id="markup" value="2" min="0" max="100" step="0.5">
+      </div>
+      <div class="config-row">
+        <label>Clean Sheet ROI % Threshold</label>
+        <input type="number" id="roiThreshold" value="-15" min="-100" max="100" step="1">
+      </div>
+    </div>
+
+    <button class="merge-btn" id="mergeBtn" disabled onclick="runMerge()">
+      Upload both files to merge
+    </button>
+
+    <div class="status" id="status"></div>
+    <div class="progress-bar" id="progressBar" style="display:none">
+      <div class="fill" id="progressFill"></div>
+    </div>
+
+    <div class="stats" id="stats">
+      <div class="stat-row">
+        <span class="label">Raw file products</span>
+        <span class="value" id="statRaw">-</span>
+      </div>
+      <div class="stat-row">
+        <span class="label">Keepa products (with Buy Box)</span>
+        <span class="value" id="statKeepa">-</span>
+      </div>
+      <div class="stat-row">
+        <span class="label">Matched products</span>
+        <span class="value" id="statMatched">-</span>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // ============================================================
+    // CONFIGURATION - Update this after deploying Google Apps Script
+    // ============================================================
+    const APPS_SCRIPT_URL = 'YOUR_APPS_SCRIPT_URL_HERE';
+
+    let file1Data = null;
+    let file2Data = null;
+
+    // Drag & drop handling
+    ['drop1', 'drop2'].forEach((id, i) => {
+      const el = document.getElementById(id);
+      el.addEventListener('dragover', e => { e.preventDefault(); el.classList.add('dragover'); });
+      el.addEventListener('dragleave', () => el.classList.remove('dragover'));
+      el.addEventListener('drop', e => {
+        e.preventDefault();
+        el.classList.remove('dragover');
+        const input = document.getElementById('file' + (i + 1));
+        input.files = e.dataTransfer.files;
+        handleFile(i + 1, input);
+      });
+    });
+
+    function handleFile(num, input) {
+      const file = input.files[0];
+      if (!file) return;
+      const drop = document.getElementById('drop' + num);
+      const label = document.getElementById('label' + num);
+      drop.classList.add('has-file');
+      label.className = 'filename';
+      label.textContent = file.name;
+
+      const reader = new FileReader();
+      reader.onload = function(e) {
+        const data = new Uint8Array(e.target.result);
+        const wb = XLSX.read(data, { type: 'array' });
+        const ws = wb.Sheets[wb.SheetNames[0]];
+        const json = XLSX.utils.sheet_to_json(ws, { defval: '' });
+        if (num === 1) file1Data = json;
+        else file2Data = json;
+        checkReady();
+      };
+      reader.readAsArrayBuffer(file);
+    }
+
+    function checkReady() {
+      const btn = document.getElementById('mergeBtn');
+      if (file1Data && file2Data) {
+        btn.disabled = false;
+        btn.textContent = 'Merge & Create Google Sheet';
+      }
+    }
+
+    function normalizeUPC(upc) {
+      if (upc === null || upc === undefined || upc === '') return '';
+      let s = String(upc).trim();
+      // Remove .0 suffix from numeric imports
+      s = s.replace(/\.0+$/, '');
+      // Strip leading zeros
+      s = s.replace(/^0+/, '');
+      return s;
+    }
+
+    function findColumn(row, candidates) {
+      for (const key of Object.keys(row)) {
+        const lower = key.toLowerCase().trim();
+        for (const c of candidates) {
+          if (lower === c.toLowerCase()) return key;
+        }
+      }
+      return null;
+    }
+
+    function setStatus(type, html) {
+      const el = document.getElementById('status');
+      el.className = 'status ' + type;
+      el.innerHTML = html;
+    }
+
+    function setProgress(pct) {
+      const bar = document.getElementById('progressBar');
+      const fill = document.getElementById('progressFill');
+      bar.style.display = pct > 0 ? 'block' : 'none';
+      fill.style.width = pct + '%';
+    }
+
+    async function runMerge() {
+      const btn = document.getElementById('mergeBtn');
+      btn.disabled = true;
+      btn.textContent = 'Processing...';
+      setStatus('loading', 'â³ Reading and merging files...');
+      setProgress(10);
+
+      try {
+        const markupPct = parseFloat(document.getElementById('markup').value) || 2;
+        const roiThreshold = parseFloat(document.getElementById('roiThreshold').value) || -15;
+        const markupFactor = 1 + (markupPct / 100);
+
+        // --- Step 1: Parse raw distributor file ---
+        const rawRow0 = file1Data[0];
+        const upcCol = findColumn(rawRow0, ['UPC', 'upc', 'Upc']);
+        const costCol = findColumn(rawRow0, ['Unit Cost', 'UnitCost', 'Cost', 'Unit_Cost', 'UNIT COST']);
+        const distCol = findColumn(rawRow0, ['Company', 'Distributor', 'Vendor', 'Supplier']);
+
+        if (!upcCol || !costCol) {
+          throw new Error('Raw file must have UPC and Unit Cost columns. Found: ' + Object.keys(rawRow0).join(', '));
+        }
+
+        const rawMap = {};
+        let rawCount = 0;
+        for (const row of file1Data) {
+          const upc = normalizeUPC(row[upcCol]);
+          if (!upc) continue;
+          const cost = parseFloat(row[costCol]);
+          if (isNaN(cost)) continue;
+          rawMap[upc] = {
+            upc_original: String(row[upcCol]).trim().replace(/\.0+$/, ''),
+            unit_cost: Math.round(cost * markupFactor * 100) / 100,
+            distributor: distCol ? String(row[distCol] || '').trim() : ''
+          };
+          rawCount++;
+        }
+
+        setStatus('loading', `â³ Raw file: ${rawCount} UPCs loaded. Merging with Keepa...`);
+        setProgress(30);
+
+        // --- Step 2: Parse Keepa export ---
+        const keepaRow0 = file2Data[0];
+        const asinCol = findColumn(keepaRow0, ['ASIN', 'asin']);
+        const importedCodeCol = findColumn(keepaRow0, ['Imported by Code', 'ImportedByCode', 'UPC', 'EAN']);
+        const buyBoxCol = findColumn(keepaRow0, ['Buy Box: 90 days avg.', 'Buy Box: 90 days avg', 'BuyBox90', 'Buy Box']);
+        const brandCol = findColumn(keepaRow0, ['Brand', 'brand']);
+        const boughtCol = findColumn(keepaRow0, ['Bought in past month', 'BoughtInPastMonth', 'Monthly Sales']);
+        const salesRankCol = findColumn(keepaRow0, ['Sales Rank: 90 days avg.', 'Sales Rank: 90 days avg', 'SalesRank90', 'Sales Rank']);
+        const categoryCol = findColumn(keepaRow0, ['Categories: Root', 'CategoriesRoot', 'Category', 'Categories']);
+
+        if (!asinCol || !importedCodeCol) {
+          throw new Error('Keepa file must have ASIN and Imported by Code columns. Found: ' + Object.keys(keepaRow0).join(', '));
+        }
+
+        // --- Step 3: Match and merge ---
+        const merged = [];
+        let keepaWithBuyBox = 0;
+
+        for (const krow of file2Data) {
+          const buyBox = krow[buyBoxCol];
+          // Filter out items without Buy Box price
+          if (buyBox === '' || buyBox === null || buyBox === undefined || buyBox === 0 || buyBox === '0') continue;
+          const buyBoxVal = parseFloat(buyBox);
+          if (isNaN(buyBoxVal) || buyBoxVal <= 0) continue;
+          keepaWithBuyBox++;
+
+          const code = normalizeUPC(krow[importedCodeCol]);
+          if (!code) continue;
+
+          const raw = rawMap[code];
+          if (!raw) continue;
+
+          const asin = String(krow[asinCol] || '').trim();
+          const brand = String(krow[brandCol] || '').trim();
+          const salesRank = krow[salesRankCol] !== '' ? parseFloat(krow[salesRankCol]) || '' : '';
+          const bought = krow[boughtCol] !== '' ? parseFloat(krow[boughtCol]) || 0 : '';
+          const category = String(krow[categoryCol] || '').trim();
+
+          merged.push({
+            asin: asin,
+            upc: raw.upc_original,
+            unit_cost: raw.unit_cost,
+            buy_box_90: buyBoxVal,
+            amazon_link: 'https://www.amazon.com/dp/' + asin,
+            brand: brand,
+            distributor: raw.distributor,
+            sales_30d: bought,
+            sales_rank: salesRank,
+            category: category
+          });
+        }
+
+        // Sort by sales rank (ascending, blanks at end)
+        merged.sort((a, b) => {
+          if (a.sales_rank === '' && b.sales_rank === '') return 0;
+          if (a.sales_rank === '') return 1;
+          if (b.sales_rank === '') return -1;
+          return a.sales_rank - b.sales_rank;
+        });
+
+        // Update stats
+        document.getElementById('statRaw').textContent = rawCount.toLocaleString();
+        document.getElementById('statKeepa').textContent = keepaWithBuyBox.toLocaleString();
+        document.getElementById('statMatched').textContent = merged.toLocaleString().length > 5 ? merged.length.toLocaleString() : merged.length;
+        document.getElementById('stats').classList.add('show');
+
+        if (merged.length === 0) {
+          throw new Error('No matching products found between the two files. Check that UPCs match.');
+        }
+
+        setStatus('loading', `â³ ${merged.length} products matched! Sending to Google Sheets...`);
+        setProgress(60);
+
+        // --- Step 4: Send to Google Apps Script ---
+        const payload = {
+          data: merged,
+          markup: markupPct,
+          roiThreshold: roiThreshold,
+          distributor: merged[0]?.distributor || 'Unknown'
+        };
+
+        const response = await fetch(APPS_SCRIPT_URL, {
+          method: 'POST',
+          mode: 'no-cors',
+          headers: { 'Content-Type': 'text/plain' },
+          body: JSON.stringify(payload)
+        });
+
+        // no-cors means we can't read the response directly
+        // Use a different approach: redirect-based
+        setProgress(80);
+        setStatus('loading', 'â³ Creating Google Sheet... This may take 30-60 seconds.');
+
+        // Poll for result using GET with a unique ID
+        const jobId = Date.now().toString(36) + Math.random().toString(36).substr(2, 5);
+
+        // Actually, let's use a form-based POST that follows redirects
+        await sendViaForm(payload);
+
+      } catch (err) {
+        setStatus('error', 'â Error: ' + err.message);
+        setProgress(0);
+        btn.disabled = false;
+        btn.textContent = 'Merge & Create Google Sheet';
+      }
+    }
+
+    function sendViaForm(payload) {
+      return new Promise((resolve) => {
+        // Create a hidden iframe to receive the response
+        const iframe = document.createElement('iframe');
+        iframe.name = 'submitFrame';
+        iframe.style.display = 'none';
+        document.body.appendChild(iframe);
+
+        // Create a form that submits to Apps Script
+        const form = document.createElement('form');
+        form.method = 'POST';
+        form.action = APPS_SCRIPT_URL;
+        form.target = 'submitFrame';
+
+        const input = document.createElement('input');
+        input.type = 'hidden';
+        input.name = 'payload';
+        input.value = JSON.stringify(payload);
+        form.appendChild(input);
+
+        document.body.appendChild(form);
+
+        // Listen for the iframe to load with the result
+        iframe.onload = function() {
+          try {
+            const content = iframe.contentDocument || iframe.contentWindow.document;
+            const text = content.body.innerText || content.body.textContent;
+            const result = JSON.parse(text);
+            if (result.url) {
+              setProgress(100);
+              setStatus('success',
+                `â Google Sheet created!<br><br>` +
+                `<a href="${result.url}" target="_blank">ð Open Google Sheet</a><br><br>` +
+                `<small>Anyone with the link can edit this sheet.</small>`
+              );
+            } else if (result.error) {
+              setStatus('error', 'â ' + result.error);
+            }
+          } catch (e) {
+            // Cross-origin - can't read iframe. Use alternative approach.
+            setProgress(100);
+            setStatus('success',
+              'â Data sent to Google Sheets! Check your Google Drive for the new spreadsheet.<br><br>' +
+              '<small>If the sheet was not created, make sure the Apps Script URL is correctly configured.</small>'
+            );
+          }
+          document.getElementById('mergeBtn').disabled = false;
+          document.getElementById('mergeBtn').textContent = 'Merge & Create Google Sheet';
+          resolve();
+        };
+
+        form.submit();
+
+        // Cleanup
+        setTimeout(() => {
+          form.remove();
+        }, 1000);
+      });
+    }
+  </script>
+</body>
+</html>
